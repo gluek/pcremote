@@ -58,7 +58,6 @@ func main() {
 	w.SetCloseIntercept(func() {
 		w.Hide()
 	})
-	utils.SetDefaultAudioDevice(utils.FindID("Lautsprecher"))
 	a.Run()
 }
 
@@ -82,5 +81,10 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 //Message Consumer
 
 func MessageRouter(msg mqtt.Message) {
-	
+	switch msg.Topic() {
+	case "computer/sound/device/speaker":
+		utils.AudioMessageRouter(msg)
+	default:
+		fmt.Println("Could not route mqtt message")
+	}
 }
