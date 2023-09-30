@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"local/pcremote/utils"
 	"strings"
 	"unicode"
 
@@ -13,7 +12,7 @@ import (
 func AudioMessageRouter(msg mqtt.Message) {
 	switch msg.Topic() {
 	case "computer/sound/device/speaker":
-		utils.SetDefaultAudioDevice(FindID("Lautsprecher"))
+		SetDefaultAudioDevice(FindID("Lautsprecher"))
 	}
 }
 
@@ -34,9 +33,7 @@ func SetDefaultAudioDevice(deviceID string) {
 		}
 		return -1
 	}, cmd)
-
 	gosh.PowershellCommand(cmd)
-
 }
 
 func FindID(name string) string {

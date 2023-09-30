@@ -29,9 +29,9 @@ func main() {
 	a := app.New()
 	w := a.NewWindow("MQTT Messages")
 	w.Resize(fyne.NewSize(400, 400))
-	icon, icoErr := fyne.LoadResourceFromPath("assets/remote4w.png")
-	if icoErr != nil {
-		fmt.Println(icoErr)
+	icon, err := fyne.LoadResourceFromPath("assets/remote4w.png")
+	if err != nil {
+		panic(err)
 	}
 
 	w.SetIcon(icon)
@@ -46,7 +46,7 @@ func main() {
 	}
 
 	text := widget.NewLabel(canvasText)
-	textCont := container.NewMax(container.NewVScroll(text))
+	textCont := container.NewBorder(nil, nil, nil, nil, container.NewVScroll(text))
 	w.SetContent(textCont)
 
 	go func() {
@@ -66,6 +66,7 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 	fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 	newText := fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 	canvasText += newText
+	MessageRouter(msg)
 }
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
@@ -78,8 +79,7 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 	fmt.Printf("Connect lost: %v", err)
 }
 
-//Message Consumer
-
+// Message Router to Trigger
 func MessageRouter(msg mqtt.Message) {
 	switch msg.Topic() {
 	case "computer/sound/device/speaker":
