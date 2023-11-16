@@ -3,49 +3,158 @@ package utils
 import (
 	"fmt"
 	"strings"
-	"unicode"
+	"syscall"
+	"unsafe"
 
-	"github.com/abdfnx/gosh"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/go-ole/go-ole"
+	"github.com/moutend/go-wca/pkg/wca"
 )
+
+// https://learn.microsoft.com/en-us/windows/win32/coreaudio/
+
+var err error
+
+type AudioDevice struct {
+	id            string
+	friendly_name string
+}
+
+type IPolicyConfigVista struct {
+	ole.IUnknown
+}
+
+type IPolicyConfigVistaVtbl struct {
+	ole.IUnknownVtbl
+	GetMixFormat          uintptr
+	GetDeviceFormat       uintptr
+	SetDeviceFormat       uintptr
+	GetProcessingPeriod   uintptr
+	SetProcessingPeriod   uintptr
+	GetShareMode          uintptr
+	SetShareMode          uintptr
+	GetPropertyValue      uintptr
+	SetPropertyValue      uintptr
+	SetDefaultEndpoint    uintptr
+	SetEndpointVisibility uintptr
+}
 
 func AudioMessageRouter(msg mqtt.Message) {
 	switch msg.Topic() {
 	case "computer/sound/device/speaker":
-		SetDefaultAudioDevice(FindID("Lautsprecher"))
+		speakerID, _ := GetDeviceIDByName("Lautsprecher")
+		SetAudioDeviceByID(speakerID)
 	}
 }
 
-func GetAudioDevices() string {
-	err, out, errout := gosh.PowershellOutput("Get-AudioDevice -List")
-	if err != nil {
-		fmt.Println(errout)
-	}
-	return out
-}
+func GetAllAudioDevices() []AudioDevice {
+	deviceList := []AudioDevice{}
+	var mmde *wca.IMMDeviceEnumerator
+	var mmdc *wca.IMMDeviceCollection
+	var mmd *wca.IMMDevice
+	var props *wca.IPropertyStore
 
-func SetDefaultAudioDevice(deviceID string) {
-	var cmd string
-	cmd = fmt.Sprintf("Set-AudioDevice -ID \"%s\"", deviceID)
-	cmd = strings.Map(func(r rune) rune {
-		if unicode.IsPrint(r) {
-			return r
+	if err = ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
+		panic(err)
+	}
+	defer ole.CoUninitialize()
+
+	if err = wca.CoCreateInstance(wca.CLSID_MMDeviceEnumerator, 0, wca.CLSCTX_ALL, wca.IID_IMMDeviceEnumerator, &mmde); err != nil {
+		panic(err)
+	}
+	defer mmde.Release()
+
+	if err = mmde.EnumAudioEndpoints(wca.ERender, wca.DEVICE_STATE_ACTIVE, &mmdc); err != nil {
+		panic(err)
+	}
+	defer mmdc.Release()
+
+	var deviceCount uint32
+	if err = mmdc.GetCount(&deviceCount); err != nil {
+		panic(err)
+	}
+	fmt.Println(deviceCount)
+	var i uint32
+	for i = 0; i < deviceCount; i++ {
+		if err = mmdc.Item(i, &mmd); err != nil {
+			panic(err)
 		}
-		return -1
-	}, cmd)
-	gosh.PowershellCommand(cmd)
+
+		var deviceID string
+		if err = mmd.GetId(&deviceID); err != nil {
+			panic(err)
+		}
+		//fmt.Printf("DeviceID: %s\n", deviceID)
+
+		if err = mmd.OpenPropertyStore(wca.STGM_READ, &props); err != nil {
+			panic(err)
+		}
+
+		var varName wca.PROPVARIANT
+		if err = props.GetValue(&wca.PKEY_Device_FriendlyName, &varName); err != nil {
+			panic(err)
+		}
+		deviceName := varName.String()
+		//fmt.Printf("Name: %s\n", deviceName)
+
+		deviceList = append(deviceList, AudioDevice{id: deviceID, friendly_name: deviceName})
+	}
+
+	return deviceList
 }
 
-func FindID(name string) string {
-	var id string = ""
-	devices := GetAudioDevices()
-	splitDevices := strings.Split(devices, "\n")
-	for i := 0; i < len(splitDevices); i++ {
-		if strings.Contains(splitDevices[i], name) {
-			splitLine := strings.Split(splitDevices[i+1], " ")
-			lastElement := splitLine[len(splitLine)-1]
-			id = lastElement
+func SetAudioDeviceByID(deviceID string) {
+	GUID_IPolicyConfigVista := ole.NewGUID("{568b9108-44bf-40b4-9006-86afe5b5a620}")
+	GUID_CPolicyConfigVistaClient := ole.NewGUID("{294935CE-F637-4E7C-A41B-AB255460B862}")
+	var policyConfig *IPolicyConfigVista
+
+	if err = ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
+		panic(err)
+	}
+	defer ole.CoUninitialize()
+
+	if err = wca.CoCreateInstance(GUID_CPolicyConfigVistaClient, 0, wca.CLSCTX_ALL, GUID_IPolicyConfigVista, &policyConfig); err != nil {
+		panic(err)
+	}
+	defer policyConfig.Release()
+
+	if err = policyConfig.SetDefaultEndpoint(deviceID, wca.EConsole); err != nil {
+		panic(err)
+	}
+}
+
+func GetDeviceIDByName(deviceName string) (deviceID string, err error) {
+	deviceList := GetAllAudioDevices()
+	for _, v := range deviceList {
+		if strings.Contains(v.friendly_name, deviceName) {
+			return v.id, nil
 		}
 	}
-	return id
+	return "", fmt.Errorf("device with name %s not found", deviceName)
+}
+
+func (v *IPolicyConfigVista) VTable() *IPolicyConfigVistaVtbl {
+	return (*IPolicyConfigVistaVtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *IPolicyConfigVista) SetDefaultEndpoint(deviceID string, eRole wca.ERole) (err error) {
+	err = pcvSetDefaultEndpoint(v, deviceID, eRole)
+	return
+}
+
+func pcvSetDefaultEndpoint(pcv *IPolicyConfigVista, deviceID string, eRole wca.ERole) (err error) {
+	var ptr *uint16
+	if ptr, err = syscall.UTF16PtrFromString(deviceID); err != nil {
+		return
+	}
+	hr, _, _ := syscall.Syscall(
+		pcv.VTable().SetDefaultEndpoint,
+		3,
+		uintptr(unsafe.Pointer(pcv)),
+		uintptr(unsafe.Pointer(ptr)),
+		uintptr(uint32(eRole)))
+	if hr != 0 {
+		err = ole.NewError(hr)
+	}
+	return
 }

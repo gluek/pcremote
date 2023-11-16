@@ -4,9 +4,9 @@ go 1.21.1
 
 require (
 	fyne.io/fyne/v2 v2.4.0
-	github.com/KnicKnic/go-powershell v0.0.10
-	github.com/abdfnx/gosh v0.4.0
 	github.com/eclipse/paho.mqtt.golang v1.4.4-0.20230810210351-7b759f1d9ddf
+	github.com/go-ole/go-ole v1.2.6
+	github.com/moutend/go-wca v0.3.0
 )
 
 require (
