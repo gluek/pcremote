@@ -1,9 +1,12 @@
 // Remote Control Package to execute computer functions via mqtt
+// Author: Gerrit Lükens
+// Date: 2023-11-18
 package main
 
 import (
 	"fmt"
 	"local/pcremote/utils"
+	"log"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -12,15 +15,26 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/spf13/viper"
 )
 
 var canvasText = ""
 
+var err error
+
 func main() {
-	var broker = "192.168.0.5"
-	var port = 1883
+	viper.SetConfigName("config")
+	viper.SetConfigType("json")
+	viper.AddConfigPath(".")
+	if err = viper.ReadInConfig(); err != nil {
+		panic(fmt.Errorf("fatal error config file: %s", err))
+	}
+
+	var broker = viper.Get("broker.ip")
+	var port = viper.Get("broker.port")
+
 	mqttOpts := mqtt.NewClientOptions()
-	mqttOpts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
+	mqttOpts.AddBroker(fmt.Sprintf("tcp://%s:%s", broker, port))
 	mqttOpts.SetDefaultPublishHandler(messagePubHandler)
 	mqttOpts.OnConnect = connectHandler
 	mqttOpts.OnConnectionLost = connectLostHandler
@@ -63,16 +77,20 @@ func main() {
 
 // MQTT Callback Functions
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+	log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 	newText := fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 	canvasText += newText
 	MessageRouter(msg)
 }
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-	fmt.Println("Connected")
-	topic1 := "computer/sound/device/speaker"
-	client.Subscribe(topic1, 1, nil)
+	log.Printf("Connected to %s:%s\n", viper.Get("broker.ip"), viper.Get("broker.port"))
+	//topic1 := "computer/sound/device/speaker"
+	log.Printf("Subscribed to:\n")
+	for _, topic := range viper.GetStringSlice("topics") {
+		log.Printf("  Topic: %s\n", topic)
+		client.Subscribe(topic, 1, nil)
+	}
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
@@ -83,7 +101,13 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 func MessageRouter(msg mqtt.Message) {
 	switch msg.Topic() {
 	case "computer/sound/device/speaker":
-		utils.AudioMessageRouter(msg)
+		if err = utils.AudioMessageRouter(msg); err != nil {
+			fmt.Printf("Could not handle: %s/%s\n, Error: %s", msg.Topic(), msg.Payload(), err)
+		}
+	case "computer/sound/device/soundbar":
+		if err = utils.AudioMessageRouter(msg); err != nil {
+			fmt.Printf("Could not handle: %s/%s\n, Error: %s", msg.Topic(), msg.Payload(), err)
+		}
 	default:
 		fmt.Println("Could not route mqtt message")
 	}
