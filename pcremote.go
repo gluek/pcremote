@@ -1,4 +1,4 @@
-// Remote Control Package to execute computer functions via mqtt
+// Remote control package to execute pc routines via mqtt
 // Author: Gerrit Lükens
 // Date: 2023-11-18
 package main
