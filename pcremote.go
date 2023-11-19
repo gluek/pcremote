@@ -5,9 +5,10 @@ package main
 
 import (
 	"fmt"
-	"local/pcremote/utils"
 	"log"
 	"time"
+
+	"github.com/gluek/pcremote/utils"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
