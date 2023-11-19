@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var CanvasText = ""
+var MQTTMsgLog = ""
 
 var err error
 
@@ -60,13 +60,13 @@ func main() {
 		desk.SetSystemTrayIcon(icon)
 	}
 
-	text := widget.NewLabel(CanvasText)
+	text := widget.NewLabel(MQTTMsgLog)
 	textCont := container.NewBorder(nil, nil, nil, nil, container.NewVScroll(text))
 	w.SetContent(textCont)
 
 	go func() {
 		for range time.Tick(time.Second) {
-			text.SetText(CanvasText)
+			text.SetText(MQTTMsgLog)
 		}
 	}()
 
@@ -76,17 +76,16 @@ func main() {
 	a.Run()
 }
 
-// MQTT Callback Functions
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 	newText := fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
-	CanvasText += newText
+	MQTTMsgLog += newText
 }
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 	log.Printf("Connected to %s:%s\n", viper.Get("broker.ip"), viper.Get("broker.port"))
 	log.Printf("Subscribed to:\n")
-	utils.RegisterAudioDevices(client, &CanvasText)
+	utils.RegisterAudioDevices(client, &MQTTMsgLog)
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
