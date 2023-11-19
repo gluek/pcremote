@@ -20,7 +20,7 @@ type audioDevice struct {
 }
 
 var audioDevices []audioDevice
-var canvasPointer *string
+var mqttMsgLogPointer *string
 
 var messageAudioHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
@@ -32,13 +32,13 @@ var messageAudioHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.
 		}
 	}
 	newText := fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
-	*canvasPointer += newText
+	*mqttMsgLogPointer += newText
 }
 
 func RegisterAudioDevices(client mqtt.Client, canvas *string) error {
 	audioDevices = []audioDevice{}
 	audioDevicesFromConfig := viper.GetStringMap("audiodevices")
-	canvasPointer = canvas
+	mqttMsgLogPointer = canvas
 
 	for _, device := range audioDevicesFromConfig {
 		deviceName := device.(map[string]any)["friendly_name"].(string)
