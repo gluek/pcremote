@@ -41,6 +41,7 @@ func main() {
 	mqttOpts.OnConnectionLost = connectLostHandler
 	client := mqtt.NewClient(mqttOpts)
 	client.Connect()
+
 	a := app.New()
 	w := a.NewWindow("MQTT Messages")
 	w.Resize(fyne.NewSize(400, 400))
@@ -53,7 +54,7 @@ func main() {
 
 	if desk, ok := a.(desktop.App); ok {
 		m := fyne.NewMenu("MyApp",
-			fyne.NewMenuItem("Show", func() {
+			fyne.NewMenuItem("Show MQTT Log", func() {
 				w.Show()
 			}))
 		desk.SetSystemTrayMenu(m)
@@ -88,7 +89,6 @@ var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 	if err = audio.RegisterAudioDevices(client, &MQTTMsgLog); err != nil {
 		log.Fatalf("could not register audio devices: %s\n", err)
 	}
-
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
