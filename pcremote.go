@@ -44,7 +44,7 @@ func main() {
 	a := app.New()
 	w := a.NewWindow("MQTT Messages")
 	w.Resize(fyne.NewSize(400, 400))
-	icon, err := fyne.LoadResourceFromPath("assets/remote4w.png")
+	icon, err := fyne.LoadResourceFromPath("assets/trayicon.png")
 	if err != nil {
 		panic(err)
 	}
