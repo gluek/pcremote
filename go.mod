@@ -1,4 +1,4 @@
-module local/pcremote
+module github.com/gluek/pcremote
 
 go 1.21.1
 
@@ -7,6 +7,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.4.4-0.20230810210351-7b759f1d9ddf
 	github.com/go-ole/go-ole v1.2.6
 	github.com/moutend/go-wca v0.3.0
+	github.com/spf13/viper v1.17.0
 )
 
 require (
@@ -36,7 +37,6 @@ require (
 	github.com/spf13/afero v1.10.0 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.17.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
