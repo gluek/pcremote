@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var canvasText = ""
+var CanvasText = ""
 
 var err error
 
@@ -59,13 +59,13 @@ func main() {
 		desk.SetSystemTrayIcon(icon)
 	}
 
-	text := widget.NewLabel(canvasText)
+	text := widget.NewLabel(CanvasText)
 	textCont := container.NewBorder(nil, nil, nil, nil, container.NewVScroll(text))
 	w.SetContent(textCont)
 
 	go func() {
 		for range time.Tick(time.Second) {
-			text.SetText(canvasText)
+			text.SetText(CanvasText)
 		}
 	}()
 
@@ -79,36 +79,15 @@ func main() {
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 	newText := fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
-	canvasText += newText
-	MessageRouter(msg)
+	CanvasText += newText
 }
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 	log.Printf("Connected to %s:%s\n", viper.Get("broker.ip"), viper.Get("broker.port"))
-	//topic1 := "computer/sound/device/speaker"
 	log.Printf("Subscribed to:\n")
-	for _, topic := range viper.GetStringSlice("topics") {
-		log.Printf("  Topic: %s\n", topic)
-		client.Subscribe(topic, 1, nil)
-	}
+	utils.RegisterAudioDevices(client, &CanvasText)
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
 	fmt.Printf("Connect lost: %v", err)
-}
-
-// Message Router to Trigger
-func MessageRouter(msg mqtt.Message) {
-	switch msg.Topic() {
-	case "computer/sound/device/speaker":
-		if err = utils.AudioMessageRouter(msg); err != nil {
-			fmt.Printf("Could not handle: %s/%s\n, Error: %s", msg.Topic(), msg.Payload(), err)
-		}
-	case "computer/sound/device/soundbar":
-		if err = utils.AudioMessageRouter(msg); err != nil {
-			fmt.Printf("Could not handle: %s/%s\n, Error: %s", msg.Topic(), msg.Payload(), err)
-		}
-	default:
-		fmt.Println("Could not route mqtt message")
-	}
 }

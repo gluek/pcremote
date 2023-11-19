@@ -12,11 +12,6 @@ import (
 
 // https://learn.microsoft.com/en-us/windows/win32/coreaudio/
 
-type audioDevice struct {
-	id            string
-	friendly_name string
-}
-
 type iIPolicyConfigVista struct {
 	ole.IUnknown
 }
@@ -72,7 +67,6 @@ func getAllDevices() ([]audioDevice, error) {
 		if err = mmd.GetId(&deviceID); err != nil {
 			return []audioDevice{}, err
 		}
-		//fmt.Printf("DeviceID: %s\n", deviceID)
 
 		if err = mmd.OpenPropertyStore(wca.STGM_READ, &props); err != nil {
 			return []audioDevice{}, err
@@ -83,7 +77,6 @@ func getAllDevices() ([]audioDevice, error) {
 			return []audioDevice{}, err
 		}
 		deviceName := varName.String()
-		//fmt.Printf("Name: %s\n", deviceName)
 
 		deviceList = append(deviceList, audioDevice{id: deviceID, friendly_name: deviceName})
 	}
@@ -91,7 +84,7 @@ func getAllDevices() ([]audioDevice, error) {
 	return deviceList, nil
 }
 
-func setDefaultEndpointByID(deviceID string) error {
+func (device *audioDevice) setDefaultEndpointByID() error {
 	GUID_IPolicyConfigVista := ole.NewGUID("{568b9108-44bf-40b4-9006-86afe5b5a620}")
 	GUID_CPolicyConfigVistaClient := ole.NewGUID("{294935CE-F637-4E7C-A41B-AB255460B862}")
 	var policyConfig *iIPolicyConfigVista
@@ -106,7 +99,7 @@ func setDefaultEndpointByID(deviceID string) error {
 	}
 	defer policyConfig.Release()
 
-	if err = policyConfig.SetDefaultEndpoint(deviceID, wca.EConsole); err != nil {
+	if err = policyConfig.SetDefaultEndpoint(device.id, wca.EConsole); err != nil {
 		return err
 	}
 	return nil
