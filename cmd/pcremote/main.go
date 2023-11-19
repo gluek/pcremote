@@ -8,8 +8,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/gluek/pcremote/utils"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -17,6 +15,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/spf13/viper"
+
+	audio "github.com/gluek/pcremote/internal/audio"
 )
 
 var MQTTMsgLog = ""
@@ -26,7 +26,7 @@ var err error
 func main() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
-	viper.AddConfigPath(".")
+	viper.AddConfigPath("./assets")
 	if err = viper.ReadInConfig(); err != nil {
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
@@ -44,7 +44,7 @@ func main() {
 	a := app.New()
 	w := a.NewWindow("MQTT Messages")
 	w.Resize(fyne.NewSize(400, 400))
-	icon, err := fyne.LoadResourceFromPath("assets/trayicon.png")
+	icon, err := fyne.LoadResourceFromPath("./assets/trayicon.png")
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +85,10 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 	log.Printf("Connected to %s:%s\n", viper.Get("broker.ip"), viper.Get("broker.port"))
 	log.Printf("Subscribed to:\n")
-	utils.RegisterAudioDevices(client, &MQTTMsgLog)
+	if err = audio.RegisterAudioDevices(client, &MQTTMsgLog); err != nil {
+		log.Fatalf("could not register audio devices: %s\n", err)
+	}
+
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
